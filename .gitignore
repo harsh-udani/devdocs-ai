@@ -1,0 +1,26 @@
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# Secrets and API keys
+.env.*
+!.env.example
+
+# IDE and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Generated data and local indexes
+data/
+vector_store/
+*.faiss
+*.pkl
+
+# Logs
+*.log
