@@ -144,60 +144,101 @@ with url_tab:
 
 
 # Shared question-answer interface
-if st.session_state.document_name:
-    st.divider()
-    st.caption(f"Active source: {st.session_state.document_name}")
-    st.subheader("Ask a question")
 
-    question = st.text_area(
-        "Your question",
-        placeholder="Ask something about your document...",
-        height=100,
-        key="question_input",
+# Professional chat interface
+st.divider()
+
+st.subheader("Ask your documentation")
+st.caption(
+    "Answers are generated from your indexed content using semantic search."
+)
+
+if not st.session_state.document_name:
+    st.info("Add a document or public documentation URL to begin.")
+else:
+    st.markdown(
+        f"**Active knowledge source:** "
+        f"`{st.session_state.document_name}`"
     )
 
-    if st.button("Get answer", type="primary", use_container_width=True):
-        if not question.strip():
-            st.warning("Please enter a question.")
+    # Suggested questions for first-time users
+    if not st.session_state.messages:
+        st.markdown("##### Try asking")
+
+        suggestions = [
+            "Summarize this document",
+            "What are the key technical details?",
+            "Find important requirements",
+        ]
+
+        cols = st.columns(3)
+
+        for i, suggestion in enumerate(suggestions):
+            if cols[i].button(suggestion, key=f"suggestion_{i}"):
+                st.session_state.pending_question = suggestion
+                st.rerun()
+
+    # Render previous conversation
+    for message in st.session_state.messages:
+        with st.chat_message("user"):
+            st.markdown(message["question"])
+
+        with st.chat_message("assistant"):
+            st.markdown(message["answer"])
+
+    # Accept a new question
+    pending_question = st.session_state.pop(
+        "pending_question", None
+    )
+
+    question = st.chat_input(
+        "Ask anything about your documentation..."
+    )
+
+    question = question or pending_question
+
+    if question:
+        if st.session_state.index is None:
+            st.warning("Please process a document first.")
         else:
+            with st.chat_message("user"):
+                st.markdown(question)
+
             try:
-                with st.spinner("Finding your answer..."):
-                    model = load_embedding_model()
+                with st.chat_message("assistant"):
+                    with st.spinner("Searching for an answer..."):
+                        model = load_embedding_model()
 
-                    results = search_documentation(
-                        query=question.strip(),
-                        chunks=st.session_state.chunks,
-                        model=model,
-                        index=st.session_state.index,
-                        top_k=3,
-                    )
-
-                    if results:
-                        answer = generate_answer(question.strip(), results)
-                    else:
-                        answer = (
-                            "I couldn't find relevant information "
-                            "in the active documentation."
+                        results = search_documentation(
+                            query=question,
+                            chunks=st.session_state.chunks,
+                            model=model,
+                            index=st.session_state.index,
+                            top_k=3,
                         )
+
+                        if results:
+                            answer = generate_answer(
+                                question, results
+                            )
+                        else:
+                            answer = (
+                               "I couldn't find sufficiently relevant information "
+                                "in the active documentation to answer this question. "
+                              "Try rephrasing your question or adding more relevant content."
+                            )
+
+                    st.markdown(answer)
 
                 st.session_state.messages.append(
                     {
-                        "question": question.strip(),
+                        "question": question,
                         "answer": answer,
                     }
                 )
 
             except Exception:
                 st.error(
-                    "Something went wrong while searching. "
-                    "Please try again."
+                    "Unable to generate an answer. "
+                    "Please try again or check the application logs."
                 )
-
-    for message in reversed(st.session_state.messages):
-        with st.container(border=True):
-            st.markdown("**Question**")
-            st.write(message["question"])
-            st.markdown("**Answer**")
-            st.markdown(message["answer"])
-else:
-    st.info("Upload a document or load a URL to start asking questions.")

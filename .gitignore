@@ -24,3 +24,6 @@ vector_store/
 
 # Logs
 *.log
+
+#test folder
+tests

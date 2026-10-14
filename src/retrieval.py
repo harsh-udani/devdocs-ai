@@ -26,11 +26,22 @@ def build_search_index(chunks, model):
     return index, vectors
 
 
-def search_documentation(query, chunks, model, index, top_k=3):
-    """Return the most similar documentation chunks."""
+
+def search_documentation(
+    query,
+    chunks,
+    model,
+    index,
+    top_k=3,
+    min_similarity=0.30,
+):
+    """Retrieve the most relevant chunks above a configurable threshold."""
 
     if not query.strip():
         raise ValueError("Query cannot be empty.")
+
+    if not chunks or index.ntotal == 0:
+        return []
 
     query_vector = embed_texts([query], model)
     query_vector = np.ascontiguousarray(
@@ -46,11 +57,18 @@ def search_documentation(query, chunks, model, index, top_k=3):
         if idx < 0:
             continue
 
+        similarity = float(score)
+
+        # Reject results below the configured relevance threshold.
+        if similarity < min_similarity:
+            continue
+
         result = chunks[int(idx)].copy()
-        result["similarity"] = float(score)
+        result["similarity"] = similarity
         results.append(result)
 
     return results
+
 
 
 if __name__ == "__main__":

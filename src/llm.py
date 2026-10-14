@@ -69,19 +69,33 @@ def generate_answer(question: str, retrieved_chunks: list[dict]) -> str:
     )
 
     # Add source URLs from retrieved metadata rather than relying on the LLM.
+    
     sources = []
-    seen_urls = set()
+    seen_sources = set()
 
     for chunk in retrieved_chunks:
-        url = chunk.get("source_url")
+        source = chunk.get("source_url", "")
         title = chunk.get("title", "Documentation")
+        start_index = chunk.get("start_index")
 
-        if url and url not in seen_urls:
-            sources.append(f"- [{title}]({url})")
-            seen_urls.add(url)
+        if not source or source in seen_sources:
+            continue
+
+        seen_sources.add(source)
+
+        if source.startswith(("https://", "http://")):
+            reference = f"- [{title}]({source})"
+        else:
+            reference = f"- **{title}** — {source}"
+
+        if start_index is not None:
+            reference += f" (text offset: {start_index})"
+
+        sources.append(reference)
 
     if sources:
         answer += "\n\n### Sources\n" + "\n".join(sources)
 
     return answer.strip()
+
     
